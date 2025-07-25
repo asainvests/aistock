@@ -29,7 +29,7 @@ def get_stock_data(ticker, start=None, end=None):
     if end is None:
         end = today
 
-    intervals = ["1h", "1d"]
+    intervals = ["1h", "1d", "1wk"]
     df = pd.DataFrame()
 
     for interval in intervals:
@@ -130,7 +130,7 @@ def predict_future(model, recent_data, scaler, future_days=5):
 # ========== 3. News + Sentiment ==========
 
 newsapi = NewsApiClient(api_key='bcfd723986ed4a24a0d623175b7e2cd1')
-sentiment_pipeline = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
+sentiment_pipeline = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english", revision="main")
 
 def get_news(ticker):
     try:
@@ -170,7 +170,9 @@ def log_prediction(ticker, preds, actuals):
 
 def app():
     st.set_page_config(page_title="QuantumVest AI Forecaster", layout="wide")
-    st.sidebar.image("/mnt/data/A_logo_design_for_\"NeuroTrade_AI,\"_an_artificial_i.png", width=150)
+    logo_path = os.path.join(os.path.dirname(__file__), "logo.png")
+    if os.path.exists(logo_path):
+        st.sidebar.image(logo_path, width=150)
     st.title("💼 QuantumVest — Institutional AI Stock Forecasting")
     st.markdown("A next-generation predictive engine trained on market memory, chaos theory, and investor sentiment. Adaptive, explainable, and deadly accurate.")
 
