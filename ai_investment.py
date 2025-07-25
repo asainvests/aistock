@@ -24,7 +24,7 @@ warnings.filterwarnings("ignore")
 
 def get_stock_data(ticker, start=None, end=None):
     if start is None:
-        start = (datetime.today() - timedelta(days=365)).strftime('%Y-%m-%d')
+        start = datetime.today().strftime('%Y-%m-%d')
     if end is None:
         end = datetime.today().strftime('%Y-%m-%d')
 
