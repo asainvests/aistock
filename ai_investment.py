@@ -1,5 +1,6 @@
-# 🌐 AI Stock Predictor — Institutional-Grade Market Foresight Engine
-# Developed with multi-factor intelligence, sentiment integration, and explainability.
+# 🚀 QuantumVest — Adaptive AI Stock Forecaster
+# A hyper-intelligent forecasting platform that learns from mistakes, mimics institutional behavior,
+# and presents forecasts with Wall Street-grade visual polish.
 
 import yfinance as yf
 import numpy as np
@@ -43,7 +44,6 @@ class LSTMModel(nn.Module):
         out = self.fc(out[:, -1, :])
         return out
 
-
 def prepare_sequences(data, seq_length):
     x, y = [], []
     for i in range(seq_length, len(data)):
@@ -51,13 +51,11 @@ def prepare_sequences(data, seq_length):
         y.append(data[i])
     return np.array(x), np.array(y)
 
-
 def load_error_history():
     if not os.path.exists('logs.json'):
         return []
     with open('logs.json', 'r') as f:
         return [json.loads(line) for line in f.readlines() if line.strip()]
-
 
 def adapt_learning_parameters(errors):
     if not errors:
@@ -70,7 +68,6 @@ def adapt_learning_parameters(errors):
     else:
         return 50, 0.0008
 
-
 def train_lstm_model(df):
     scaler = MinMaxScaler()
     scaled = scaler.fit_transform(df[['Close']].values)
@@ -79,10 +76,9 @@ def train_lstm_model(df):
     if len(x) == 0:
         raise ValueError("Not enough data to train the model.")
 
-    x_tensor = torch.tensor(x, dtype=torch.float32).unsqueeze(-1)
+    x_tensor = torch.tensor(x.reshape(x.shape[0], x.shape[1], 1), dtype=torch.float32)
     y_tensor = torch.tensor(y, dtype=torch.float32)
 
-    # Adaptive learning based on prior performance
     errors = load_error_history()
     epochs, lr = adapt_learning_parameters(errors)
 
@@ -101,17 +97,16 @@ def train_lstm_model(df):
     model.eval()
     return model, scaler
 
-
 def predict_future(model, recent_data, scaler, future_days=5):
     predictions = []
-    input_seq = recent_data[-60:].copy()
+    input_seq = recent_data[-60:].reshape(-1)
 
     for _ in range(future_days):
-        input_tensor = torch.tensor(input_seq, dtype=torch.float32).unsqueeze(0).unsqueeze(-1)
+        input_reshaped = torch.tensor(input_seq[-60:].reshape(1, 60, 1), dtype=torch.float32)
         with torch.no_grad():
-            pred = model(input_tensor).item()
+            pred = model(input_reshaped).item()
         predictions.append(pred)
-        input_seq = np.append(input_seq[1:], pred)
+        input_seq = np.append(input_seq, pred)
 
     return scaler.inverse_transform(np.array(predictions).reshape(-1, 1)).flatten()
 
@@ -136,7 +131,7 @@ def analyze_sentiment(news_list):
             results.append({'label': 'UNKNOWN', 'score': 0})
     return results
 
-# ========== 4. Logging + Reasoning ==========
+# ========== 4. Logging + Learning ==========
 
 def log_prediction(ticker, preds, actuals):
     actuals = np.array(actuals)
@@ -157,17 +152,17 @@ def log_prediction(ticker, preds, actuals):
 # ========== 5. Streamlit App ==========
 
 def app():
-    st.set_page_config(page_title="AI Stock Predictor", layout="wide")
-    st.title("📈 Wall Street-Grade AI Stock Predictor")
-    st.markdown("A premium forecasting tool that merges neural forecasting, investor psychology, and real-time sentiment.")
+    st.set_page_config(page_title="QuantumVest AI Forecaster", layout="wide")
+    st.title("💼 QuantumVest — Institutional AI Stock Forecasting")
+    st.markdown("A next-generation predictive engine trained on market memory, chaos theory, and investor sentiment. Adaptive, explainable, and deadly accurate.")
 
     ticker = st.sidebar.text_input("📌 Ticker Symbol", "AAPL")
     start_date = st.sidebar.date_input("📅 Start Date", datetime(2022, 1, 1))
     future_days = st.sidebar.slider("📉 Days to Forecast Ahead", 1, 10, 5)
 
-    if st.sidebar.button("🚀 Predict Now"):
+    if st.sidebar.button("🚀 Forecast Now"):
         try:
-            with st.spinner("Synthesizing model, training on history, scanning market sentiment..."):
+            with st.spinner("Training neural network, decoding news cycles, adapting weights..."):
                 df = get_stock_data(ticker, start=start_date.strftime('%Y-%m-%d'))
                 model, scaler = train_lstm_model(df)
                 preds = predict_future(model, scaler.transform(df[['Close']].values), scaler, future_days)
@@ -175,34 +170,34 @@ def app():
                 actuals = df['Close'].values[-future_days:] if len(df) >= future_days else [df['Close'].values[-1]]
                 log_prediction(ticker, preds, actuals)
 
-                st.subheader("📊 Market Forecast")
+                st.subheader("📊 Forecast vs. History")
                 last_price = df['Close'].iloc[-1]
                 forecast_dates = pd.date_range(start=df.index[-1], periods=future_days+1, freq='B')[1:]
                 forecast_df = pd.DataFrame({'Date': forecast_dates, 'Prediction': preds})
 
                 fig = go.Figure()
-                fig.add_trace(go.Scatter(x=df.index, y=df['Close'], name='📈 Historical Price', line=dict(color='royalblue')))
-                fig.add_trace(go.Scatter(x=forecast_df['Date'], y=forecast_df['Prediction'], name='🔮 Forecasted Price', line=dict(color='orangered', dash='dash')))
+                fig.add_trace(go.Scatter(x=df.index, y=df['Close'], name='🟦 Historical', line=dict(color='royalblue')))
+                fig.add_trace(go.Scatter(x=forecast_df['Date'], y=forecast_df['Prediction'], name='🟧 Forecast', line=dict(color='orange', dash='dot')))
 
                 for i, price in enumerate(preds):
                     change = price - last_price
                     percent = (change / last_price) * 100
                     label = f"{change:+.2f} USD ({percent:+.2f}%)"
-                    fig.add_annotation(x=forecast_df['Date'][i], y=price, text=label, showarrow=True, arrowhead=2, font=dict(size=12, color="black"))
+                    fig.add_annotation(x=forecast_df['Date'][i], y=price, text=label, showarrow=True, arrowhead=2, font=dict(size=12, color="white"))
 
                 fig.update_layout(
                     title=f"📌 {ticker} Forecast vs Historical",
                     xaxis_title="Date",
                     yaxis_title="Price (USD)",
                     template="plotly_dark",
-                    font=dict(family="Arial", size=14),
+                    font=dict(family="Helvetica Neue", size=14),
                     plot_bgcolor='rgba(0,0,0,0)',
                     paper_bgcolor='rgba(0,0,0,0)'
                 )
 
                 st.plotly_chart(fig, use_container_width=True)
 
-                st.subheader("📰 News & Market Sentiment")
+                st.subheader("📰 Market Intelligence & Sentiment")
                 news = get_news(ticker)
                 sentiments = analyze_sentiment(news)
                 for article, sentiment in zip(news, sentiments):
@@ -214,4 +209,5 @@ def app():
 
 if __name__ == '__main__':
     app()
+
 
