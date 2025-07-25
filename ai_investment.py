@@ -27,9 +27,16 @@ def get_stock_data(ticker, start=None, end=None):
         start = (datetime.today() - timedelta(days=365)).strftime('%Y-%m-%d')
     if end is None:
         end = datetime.today().strftime('%Y-%m-%d')
-    df = yf.download(ticker, start=start, end=end, progress=False, interval="1h")
-    if df.empty:
-        raise ValueError("No data found for ticker.")
+
+    try:
+        df = yf.download(ticker, start=start, end=end, progress=False, interval="1h")
+        if df.empty:
+            raise ValueError("1h data empty")
+    except:
+        df = yf.download(ticker, start=start, end=end, progress=False, interval="1d")
+        if df.empty:
+            raise ValueError("No data found for ticker.")
+
     df.dropna(inplace=True)
     return df
 
@@ -101,7 +108,7 @@ def train_lstm_model(df):
 
 def predict_future(model, recent_data, scaler, future_days=5):
     predictions = []
-    input_seq = recent_data[-60:].reshape(-1)
+    input_seq = recent_data[-60:].flatten()
 
     for _ in range(future_days):
         input_reshaped = torch.tensor(input_seq[-60:].reshape(1, 60, 1), dtype=torch.float32)
@@ -176,7 +183,7 @@ def app():
                 actuals = df['Close'].values[-future_days:] if len(df) >= future_days else [df['Close'].values[-1]]
                 log_prediction(ticker, preds, actuals)
 
-                st.subheader("📊 Forecast vs. History")
+                st.subheader("📈 Forecast vs. History")
                 last_price = df['Close'].iloc[-1]
                 forecast_dates = pd.date_range(start=df.index[-1] + timedelta(days=1 if predict_for_tomorrow else 0), periods=future_days, freq='B')
                 forecast_df = pd.DataFrame({'Date': forecast_dates, 'Prediction': preds})
@@ -215,7 +222,3 @@ def app():
 
 if __name__ == '__main__':
     app()
-
-
-
-
