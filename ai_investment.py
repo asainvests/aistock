@@ -22,7 +22,9 @@ warnings.filterwarnings("ignore")
 
 # ========== 1. Data Handling ==========
 
-def get_stock_data(ticker, start='2022-01-01', end=None):
+def get_stock_data(ticker, start=None, end=None):
+    if start is None:
+        start = (datetime.today() - timedelta(days=365)).strftime('%Y-%m-%d')
     if end is None:
         end = datetime.today().strftime('%Y-%m-%d')
     df = yf.download(ticker, start=start, end=end, progress=False, interval="1h")
@@ -157,7 +159,7 @@ def app():
     st.markdown("A next-generation predictive engine trained on market memory, chaos theory, and investor sentiment. Adaptive, explainable, and deadly accurate.")
 
     ticker = st.sidebar.text_input("📌 Ticker Symbol", "AAPL")
-    start_date = st.sidebar.date_input("📅 Start Date", datetime(2022, 1, 1))
+    start_date = st.sidebar.date_input("🗕️ Start Date", datetime.today())
     future_days = st.sidebar.slider("📉 Days to Forecast Ahead", 1, 10, 5)
 
     if st.sidebar.button("🚀 Forecast Now"):
@@ -213,6 +215,7 @@ def app():
 
 if __name__ == '__main__':
     app()
+
 
 
 
