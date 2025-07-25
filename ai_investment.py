@@ -14,7 +14,7 @@ from transformers import pipeline
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import os
 import warnings
@@ -25,7 +25,7 @@ warnings.filterwarnings("ignore")
 def get_stock_data(ticker, start='2022-01-01', end=None):
     if end is None:
         end = datetime.today().strftime('%Y-%m-%d')
-    df = yf.download(ticker, start=start, end=end, progress=False)
+    df = yf.download(ticker, start=start, end=end, progress=False, interval="1h")
     if df.empty:
         raise ValueError("No data found for ticker.")
     df.dropna(inplace=True)
@@ -164,6 +164,10 @@ def app():
         try:
             with st.spinner("Training neural network, decoding news cycles, adapting weights..."):
                 df = get_stock_data(ticker, start=start_date.strftime('%Y-%m-%d'))
+                now = datetime.now()
+                market_close = now.replace(hour=16, minute=0, second=0, microsecond=0)
+                predict_for_tomorrow = now > market_close
+
                 model, scaler = train_lstm_model(df)
                 preds = predict_future(model, scaler.transform(df[['Close']].values), scaler, future_days)
 
@@ -172,7 +176,7 @@ def app():
 
                 st.subheader("📊 Forecast vs. History")
                 last_price = df['Close'].iloc[-1]
-                forecast_dates = pd.date_range(start=df.index[-1], periods=future_days+1, freq='B')[1:]
+                forecast_dates = pd.date_range(start=df.index[-1] + timedelta(days=1 if predict_for_tomorrow else 0), periods=future_days, freq='B')
                 forecast_df = pd.DataFrame({'Date': forecast_dates, 'Prediction': preds})
 
                 fig = go.Figure()
@@ -209,5 +213,6 @@ def app():
 
 if __name__ == '__main__':
     app()
+
 
 
