@@ -24,7 +24,7 @@ warnings.filterwarnings("ignore")
 
 def get_stock_data(ticker, start=None, end=None):
     if start is None:
-        start = datetime.today().strftime('%Y-%m-%d')
+        start = (datetime.today() - timedelta(days=60)).strftime('%Y-%m-%d')
     if end is None:
         end = datetime.today().strftime('%Y-%m-%d')
 
@@ -122,7 +122,7 @@ def predict_future(model, recent_data, scaler, future_days=5):
 # ========== 3. News + Sentiment ==========
 
 newsapi = NewsApiClient(api_key='bcfd723986ed4a24a0d623175b7e2cd1')
-sentiment_pipeline = pipeline("sentiment-analysis")
+sentiment_pipeline = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
 
 def get_news(ticker):
     try:
