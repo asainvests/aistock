@@ -1,6 +1,4 @@
 # 🚀 QuantumVest — Adaptive AI Stock Forecaster
-# A hyper-intelligent forecasting platform that learns from mistakes, mimics institutional behavior,
-# and presents forecasts with Wall Street-grade visual polish.
 
 import yfinance as yf
 import numpy as np
@@ -17,17 +15,27 @@ import torch.optim as optim
 from datetime import datetime, timedelta
 import json
 import os
+import pathlib
 import warnings
 warnings.filterwarnings("ignore")
+
+# ========== 0. Streamlit Config ==========
+st.set_page_config(page_title="QuantumVest AI Forecaster", layout="wide")
 
 # ========== 1. Data Handling ==========
 
 def get_stock_data(ticker, start=None, end=None):
     today = datetime.today()
-    if start is None or start.date() >= today.date():
-        start = today - timedelta(days=7)
+    if start is None:
+        start = today - timedelta(days=30)
+    if isinstance(start, str):
+        start = pd.to_datetime(start)
+    if isinstance(end, str):
+        end = pd.to_datetime(end)
     if end is None:
         end = today
+    if start.date() >= today.date():
+        start = today - timedelta(days=7)
 
     intervals = ["1h", "1d", "1wk"]
     df = pd.DataFrame()
@@ -44,7 +52,6 @@ def get_stock_data(ticker, start=None, end=None):
 
     if df.empty:
         raise ValueError(f"⚠️ No data found for ticker '{ticker}'. Market may be closed or ticker is invalid.")
-
     df.dropna(inplace=True)
     return df
 
@@ -116,7 +123,8 @@ def train_lstm_model(df):
 
 def predict_future(model, recent_data, scaler, future_days=5):
     predictions = []
-    input_seq = recent_data[-60:].flatten()
+    scaled = scaler.transform(recent_data)
+    input_seq = scaled[-60:].flatten()
 
     for _ in range(future_days):
         input_reshaped = torch.tensor(input_seq[-60:].reshape(1, 60, 1), dtype=torch.float32)
@@ -130,13 +138,14 @@ def predict_future(model, recent_data, scaler, future_days=5):
 # ========== 3. News + Sentiment ==========
 
 newsapi = NewsApiClient(api_key='bcfd723986ed4a24a0d623175b7e2cd1')
-sentiment_pipeline = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english", revision="main")
+sentiment_pipeline = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
 
 def get_news(ticker):
     try:
         articles = newsapi.get_everything(q=ticker, language='en', page_size=5, sort_by='publishedAt')
-        return [article['title'] + ": " + article['description'] for article in articles['articles']]
-    except:
+        return [article['title'] + ": " + (article['description'] or "") for article in articles['articles']]
+    except Exception as e:
+        st.warning(f"⚠️ News fetch failed: {str(e)}")
         return []
 
 def analyze_sentiment(news_list):
@@ -169,34 +178,36 @@ def log_prediction(ticker, preds, actuals):
 # ========== 5. Streamlit App ==========
 
 def app():
-    st.set_page_config(page_title="QuantumVest AI Forecaster", layout="wide")
-    logo_path = os.path.join(os.path.dirname(__file__), "logo.png")
-    if os.path.exists(logo_path):
-        st.sidebar.image(logo_path, width=150)
+    logo_path = pathlib.Path(__file__).parent / "logo.png"
+    if logo_path.exists():
+        st.sidebar.image(str(logo_path), width=150)
+
     st.title("💼 QuantumVest — Institutional AI Stock Forecasting")
     st.markdown("A next-generation predictive engine trained on market memory, chaos theory, and investor sentiment. Adaptive, explainable, and deadly accurate.")
 
     ticker = st.sidebar.text_input("📌 Ticker Symbol", "AAPL")
-    start_date = st.sidebar.date_input("🗕️ Start Date", datetime.today())
+    start_date = st.sidebar.date_input("🗕️ Start Date", datetime.today() - timedelta(days=30))
     future_days = st.sidebar.slider("📉 Days to Forecast Ahead", 1, 10, 5)
 
     if st.sidebar.button("🚀 Forecast Now"):
         try:
             with st.spinner("Training neural network, decoding news cycles, adapting weights..."):
-                df = get_stock_data(ticker, start=start_date.strftime('%Y-%m-%d'))
+                df = get_stock_data(ticker, start=start_date)
                 now = datetime.now()
                 market_close = now.replace(hour=16, minute=0, second=0, microsecond=0)
                 predict_for_tomorrow = now > market_close
 
                 model, scaler = train_lstm_model(df)
-                preds = predict_future(model, scaler.transform(df[['Close']].values), scaler, future_days)
+                preds = predict_future(model, df[['Close']].values, scaler, future_days)
 
                 actuals = df['Close'].values[-future_days:] if len(df) >= future_days else [df['Close'].values[-1]]
                 log_prediction(ticker, preds, actuals)
 
                 st.subheader("📈 Forecast vs. History")
                 last_price = df['Close'].iloc[-1]
-                forecast_dates = pd.date_range(start=df.index[-1] + timedelta(days=1 if predict_for_tomorrow else 0), periods=future_days, freq='B')
+                last_date = pd.to_datetime(df.index[-1])
+                start_date = last_date + timedelta(days=1 if predict_for_tomorrow else 0)
+                forecast_dates = pd.bdate_range(start=start_date, periods=future_days)
                 forecast_df = pd.DataFrame({'Date': forecast_dates, 'Prediction': preds})
 
                 fig = go.Figure()
