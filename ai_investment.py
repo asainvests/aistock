@@ -23,19 +23,27 @@ warnings.filterwarnings("ignore")
 # ========== 1. Data Handling ==========
 
 def get_stock_data(ticker, start=None, end=None):
-    if start is None:
-        start = (datetime.today() - timedelta(days=60)).strftime('%Y-%m-%d')
+    today = datetime.today()
+    if start is None or start.date() >= today.date():
+        start = today - timedelta(days=7)
     if end is None:
-        end = datetime.today().strftime('%Y-%m-%d')
+        end = today
 
-    try:
-        df = yf.download(ticker, start=start, end=end, progress=False, interval="1h")
-        if df.empty:
-            raise ValueError("1h data empty")
-    except:
-        df = yf.download(ticker, start=start, end=end, progress=False, interval="1d")
-        if df.empty:
-            raise ValueError("No data found for ticker.")
+    intervals = ["1h", "1d"]
+    df = pd.DataFrame()
+
+    for interval in intervals:
+        try:
+            temp_df = yf.download(ticker, start=start.strftime('%Y-%m-%d'), end=end.strftime('%Y-%m-%d'),
+                                  progress=False, interval=interval)
+            if not temp_df.empty:
+                df = temp_df
+                break
+        except Exception:
+            continue
+
+    if df.empty:
+        raise ValueError(f"⚠️ No data found for ticker '{ticker}'. Market may be closed or ticker is invalid.")
 
     df.dropna(inplace=True)
     return df
@@ -162,6 +170,7 @@ def log_prediction(ticker, preds, actuals):
 
 def app():
     st.set_page_config(page_title="QuantumVest AI Forecaster", layout="wide")
+    st.sidebar.image("/mnt/data/A_logo_design_for_\"NeuroTrade_AI,\"_an_artificial_i.png", width=150)
     st.title("💼 QuantumVest — Institutional AI Stock Forecasting")
     st.markdown("A next-generation predictive engine trained on market memory, chaos theory, and investor sentiment. Adaptive, explainable, and deadly accurate.")
 
